@@ -1,0 +1,63 @@
+name: CI - test application
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: expense_tracker_qa
+          POSTGRES_USER: expense_qa
+          POSTGRES_PASSWORD: qa_only_local_password_change_me
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U expense_qa -d expense_tracker_qa"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install backend deps (generate and commit lockfiles before release)
+        working-directory: backend
+        run: npm install --no-audit
+      - name: Jest, TypeScript and build
+        working-directory: backend
+        env:
+          JWT_SECRET: ci_only_random_secret_please_replace_when_deploying_123456789
+        run: |
+          npm run test
+          npm run typecheck
+          npm run build
+          npm run qa:unit
+      - name: Integration scenarios against QA database
+        working-directory: backend
+        run: npm run qa:integration
+      - name: Upload QA evidence (no real financial data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-qa-evidence
+          path: docs/qa-evidence/*.json
+          if-no-files-found: ignore
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm install --no-audit
+      - name: Frontend build and type checking
+        working-directory: frontend
+        run: |
+          npm run typecheck
+          npm run build

@@ -1,0 +1,34 @@
+name: Manual release sign-off (no automatic production deployment)
+on:
+  workflow_dispatch:
+    inputs:
+      change_ticket:
+        description: 'Approved change ticket ID'
+        required: true
+        type: string
+      uat_approved:
+        description: 'UAT sign-off completed and evidence stored?'
+        required: true
+        type: boolean
+      security_approved:
+        description: 'Security gate and security owner sign-off completed?'
+        required: true
+        type: boolean
+      restore_drill_passed:
+        description: 'Backup restore drill passed in staging?'
+        required: true
+        type: boolean
+jobs:
+  release-decision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all approvals (workflow does NOT deploy)
+        env:
+          UAT: ${{ inputs.uat_approved }}
+          SEC: ${{ inputs.security_approved }}
+          RESTORE: ${{ inputs.restore_drill_passed }}
+          TICKET: ${{ inputs.change_ticket }}
+        run: |
+          test "$UAT" = 'true' && test "$SEC" = 'true' && test "$RESTORE" = 'true'
+          test -n "$TICKET"
+          echo "Manual gate recorded for ticket $TICKET. Deploy separately after reviewing evidence."

@@ -1,0 +1,22 @@
+# Illustrative Render Blueprint. Create PostgreSQL separately and supply DATABASE_URL via secret.
+# File is not named render.yaml to avoid accidental auto-provisioning.
+services:
+  - type: web
+    name: expense-tracker-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '10000'
+      - key: ENABLE_API_DOCS
+        value: 'false'
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

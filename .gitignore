@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.DS_Store
+
+# Include safe QA Vite endpoint configuration (no credentials)
+!frontend/.env.qa
+playwright-report/
+test-results/
+
+backups/
+*.dump
+*.backup
+*.sql.gz
+frontend/.env.production
+backend/.env.production
+!**/.env.production.example

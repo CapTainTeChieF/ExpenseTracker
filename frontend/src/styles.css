@@ -1,0 +1,6 @@
+@import "tailwindcss";
+:root { font-family: 'Inter',sans-serif; color: #12203a; background:#f4f7fc; }
+body { margin:0; }
+button { cursor:pointer; }
+button:disabled { opacity:.55; cursor:not-allowed; }
+input,select,textarea { outline-color:#2563eb; }

@@ -1,0 +1,52 @@
+# SELF-CONTAINED LOCAL DEVELOPMENT/DEMO STACK ONLY (HTTP :8080).
+# NEVER use these local passwords on a public server.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: expense_tracker
+      POSTGRES_USER: expense_user
+      POSTGRES_PASSWORD: local_demo_only_change_me
+    volumes:
+      - full_local_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expense_user -d expense_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    build:
+      context: ./backend
+    command: ["node", "scripts/migrate.cjs"]
+    environment:
+      DATABASE_URL: postgresql://expense_user:local_demo_only_change_me@db:5432/expense_tracker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+  api:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: development
+      PORT: '4000'
+      DATABASE_URL: postgresql://expense_user:local_demo_only_change_me@db:5432/expense_tracker
+      FRONTEND_ORIGIN: http://localhost:8080
+      JWT_SECRET: ${LOCAL_DEMO_JWT_SECRET:?Set LOCAL_DEMO_JWT_SECRET in the root .env file (see .env.full.local.example)}
+      ENABLE_API_DOCS: 'false'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api/v1
+    ports:
+      - '127.0.0.1:8080:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+volumes:
+  full_local_pgdata:
