@@ -19,3 +19,6 @@ backups/
 frontend/.env.production
 backend/.env.production
 !**/.env.production.example
+
+# TypeScript incremental build cache
+*.tsbuildinfo
