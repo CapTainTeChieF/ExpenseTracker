@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 test('registration -> transactions -> dashboard -> charts -> logout', async ({page}) => {
   const suffix=randomUUID().slice(0,12);
   await page.goto('/');
+  await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'New user? Register',exact:true}).click();
   await page.getByPlaceholder('Your name').fill('QA Browser User');
   await page.getByPlaceholder('you@example.com').fill(`browser-${suffix}@example.test`);
   await page.getByPlaceholder('Minimum 12 characters').fill('QA-Secure-Password-123!');
@@ -23,12 +25,15 @@ test('registration -> transactions -> dashboard -> charts -> logout', async ({pa
   await expect(page.getByText('Monthly Balance',{exact:true}).locator('..').locator('p')).toContainText('750.00');
   await expect(page.getByText('Income vs Expense')).toBeVisible();
   await page.getByRole('button',{name:'Logout'}).click();
+  await expect(page.getByRole('heading',{name:'Log in',exact:true})).toBeVisible();
   await expect(page.getByPlaceholder('you@example.com')).toBeVisible();
+  await expect(page.getByPlaceholder('Your name')).toHaveCount(0);
 });
 
 test('category management and narrow-screen access', async ({page, isMobile}) => {
   const suffix=randomUUID().slice(0,12);
   await page.goto('/');
+  await page.getByRole('button',{name:'New user? Register',exact:true}).click();
   await page.getByPlaceholder('Your name').fill('QA Category User');
   await page.getByPlaceholder('you@example.com').fill(`category-${suffix}@example.test`);
   await page.getByPlaceholder('Minimum 12 characters').fill('QA-Secure-Password-123!');
