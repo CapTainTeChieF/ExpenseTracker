@@ -48,7 +48,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
-  const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
+  const [authMode, setAuthMode] = useState<'register' | 'login'>('login');
   const [authForm, setAuthForm] = useState({name:'', email:'', password:''});
   const [tab, setTab] = useState<Tab>('dashboard');
   const [month, setMonth] = useState(today().slice(0,7));
@@ -185,9 +185,10 @@ export default function App() {
   }
 
   async function logout() {
-    try {await api('/auth/logout',{method:'POST'});} catch {/* local state still reset */}
-    setUser(null);setList([]);setCategories([]);setSummary(null);setMonthly(null);setTrend(null);
-    resetForm();setError('');setNotice('');setTab('dashboard');
+  try {await api('/auth/logout',{method:'POST'});} catch {/* local state still reset */}
+  setUser(null);setList([]);setCategories([]);setSummary(null);setMonthly(null);setTrend(null);
+  resetForm();setError('');setNotice('');setTab('dashboard');
+  setAuthMode('login');
   }
 
   if (checking) return <div className="min-h-screen flex items-center justify-center text-slate-600">Checking session…</div>;
