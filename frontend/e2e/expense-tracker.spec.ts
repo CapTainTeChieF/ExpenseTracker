@@ -21,7 +21,7 @@ test('registration -> transactions -> dashboard -> charts -> logout', async ({pa
   await page.getByRole('button',{name:'Income',exact:true}).click();
   await page.getByPlaceholder('0.00').fill('1000.00');
   await page.locator('input[type="date"]').fill('2026-11-09');
-  await page.getByRole('button',{name:'Save Transaction'}).click();
+  await page.getByRole('button',{name:'Save Transaction',exact:true}).click();
   await expect(page.getByText('Monthly Balance',{exact:true}).locator('..').locator('p')).toContainText('750.00');
   await expect(page.getByText('Income vs Expense')).toBeVisible();
   await page.getByRole('button',{name:'Logout'}).click();
