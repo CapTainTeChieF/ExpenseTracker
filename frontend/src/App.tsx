@@ -4,6 +4,9 @@ import {
   ReceiptText, ShieldCheck, Tags, Trash2, Wallet, X, BarChart3, PieChart as PieIcon,
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, Tooltip, XAxis, YAxis } from 'recharts';
+import TransactionEditDialog, {
+  type TransactionEditDraft,
+} from './components/TransactionEditDialog';
 
 type Kind = 'INCOME' | 'EXPENSE';
 type User = {id: string; name: string; email: string};
@@ -64,7 +67,7 @@ export default function App() {
   const [date, setDate] = useState(today());
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Transaction | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryKind, setNewCategoryKind] = useState<Kind>('EXPENSE');
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -107,14 +110,15 @@ export default function App() {
   },[user,refresh]);
 
   function resetForm() {
-    setEditing(null); setKind('EXPENSE'); setAmount(''); setDate(today());
-    setDescription(''); setCategoryId('');
+    setKind('EXPENSE');
+    setAmount('');
+    setDate(today());
+    setDescription('');
+    setCategoryId('');
   }
+
   function beginEdit(t: Transaction) {
-    setEditing(t.id); setKind(t.kind); setAmount(t.amount); setDate(t.transactionDate);
-    setDescription(t.description); setCategoryId(t.categoryId || '');
-    setTab('dashboard'); setError('');setNotice('');
-    window.scrollTo({top:0,behavior:'smooth'});
+    setEditing(t);
   }
 
   async function submitAuth(event: FormEvent) {
@@ -127,33 +131,96 @@ export default function App() {
     } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
   }
 
+
   async function saveTransaction(event: FormEvent) {
-    event.preventDefault();setBusy(true);setError('');setNotice('');
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    setNotice('');
+
     try {
       const cleanAmount = amount.trim();
-      if (!/^\d{1,12}(\.\d{1,2})?$/.test(cleanAmount) || Number(cleanAmount) <= 0) {
-        throw new Error('Enter a valid amount (up to two decimal places)');
+
+      if (
+        !/^\d{1,12}(\.\d{1,2})?$/.test(cleanAmount) ||
+        Number(cleanAmount) <= 0
+      ) {
+        throw new Error(
+          'Enter a valid amount (up to two decimal places)',
+        );
       }
+
       const body = {
-        kind,amount:cleanAmount,transactionDate:date,description,
-        // On edit explicitly allow clearing a previously selected category.
-        ...(editing ? {categoryId: categoryId || null} : (categoryId ? {categoryId} : {})),
+        kind,
+        amount: cleanAmount,
+        transactionDate: date,
+        description,
+        ...(categoryId ? { categoryId } : {}),
       };
-      await api(`/transactions${editing?`/${editing}`:''}`,{
-        method:editing?'PATCH':'POST',body:JSON.stringify(body),
+
+      await api('/transactions', {
+        method: 'POST',
+        body: JSON.stringify(body),
       });
-      const wasEditing = Boolean(editing);
-      resetForm(); await refresh();
-      setNotice(wasEditing?'Transaction updated.':'New transaction saved.');
-    } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
+
+      resetForm();
+      await refresh();
+      setNotice('New transaction saved.');
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
+
+  async function saveEditedTransaction(draft: TransactionEditDraft) {
+    if (!editing) {
+      throw new Error('No transaction selected for editing.');
+    }
+
+    const cleanAmount = draft.amount.trim();
+
+    if (
+      !/^\d{1,12}(\.\d{1,2})?$/.test(cleanAmount) ||
+      Number(cleanAmount) <= 0
+    ) {
+      throw new Error(
+        'Enter a valid amount (up to two decimal places)',
+      );
+    }
+
+    const body = {
+      kind: draft.kind,
+      amount: cleanAmount,
+      transactionDate: draft.transactionDate,
+      description: draft.description,
+      categoryId: draft.categoryId || null,
+    };
+
+    await api(`/transactions/${editing.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+
+    setError('');
+    setNotice('Transaction updated.');
+
+    try {
+      await refresh();
+    } catch {
+      setError(
+        'Transaction updated, but dashboard refresh failed. Please refresh the page.',
+      );
+    }
+  }
+
 
   async function deleteTransaction(id: string) {
     if (!window.confirm('Permanently delete this transaction?')) return;
     setBusy(true);setError('');setNotice('');
     try {
       await api(`/transactions/${id}`,{method:'DELETE'});
-      if (editing === id) resetForm();
+      if (editing?.id === id) setEditing(null);
       await refresh();setNotice('Transaction deleted.');
     } catch(e) {setError((e as Error).message);} finally {setBusy(false);}
   }
@@ -187,7 +254,7 @@ export default function App() {
   async function logout() {
   try {await api('/auth/logout',{method:'POST'});} catch {/* local state still reset */}
   setUser(null);setList([]);setCategories([]);setSummary(null);setMonthly(null);setTrend(null);
-  resetForm();setError('');setNotice('');setTab('dashboard');
+  resetForm();setEditing(null);setError('');setNotice('');setTab('dashboard');
   setAuthMode('login');
   }
 
@@ -284,19 +351,27 @@ export default function App() {
         </section>
         <section className="grid lg:grid-cols-[390px_1fr] gap-5 items-start">
           <div className="rounded-2xl bg-white border border-slate-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-5"><div className="flex gap-2 items-center"><CirclePlus size={20} className="text-blue-600"/><h3 className="text-lg font-bold">{editing?'Edit Transaction':'New Transaction'}</h3></div>{editing&&<button onClick={resetForm} aria-label="Cancel edit"><X size={18}/></button>}</div>
+            <div className="flex items-center gap-2 mb-5">
+              <CirclePlus size={20} className="text-blue-600" />
+              <h3 className="text-lg font-bold">New Transaction</h3>
+            </div>
             <form onSubmit={saveTransaction} className="space-y-4">
               <div className="grid grid-cols-2 gap-2"><button type="button" onClick={()=>{setKind('EXPENSE');setCategoryId('');}} className={`rounded-xl border py-2.5 text-sm font-bold ${kind==='EXPENSE'?'border-rose-200 bg-rose-50 text-rose-700':'border-slate-200 text-slate-500'}`}>Expense</button><button type="button" onClick={()=>{setKind('INCOME');setCategoryId('');}} className={`rounded-xl border py-2.5 text-sm font-bold ${kind==='INCOME'?'border-emerald-200 bg-emerald-50 text-emerald-700':'border-slate-200 text-slate-500'}`}>Income</button></div>
               <label className="block text-sm font-semibold">Amount (BDT)<input required type="text" inputMode="decimal" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="0.00" className="mt-1.5 w-full rounded-xl border border-slate-200 p-3"/></label>
               <label className="block text-sm font-semibold">Category<select value={categoryId} onChange={e=>setCategoryId(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3"><option value="">Uncategorized</option>{kindCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               <label className="block text-sm font-semibold">Date<input required type="date" value={date} onChange={e=>setDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3"/></label>
               <label className="block text-sm font-semibold">Description<textarea rows={2} maxLength={250} value={description} onChange={e=>setDescription(e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 resize-y" placeholder="e.g. Lunch, Bus Fare"/></label>
-              <button disabled={busy} className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5">{busy?'Saving...':editing?'Update':'Save Transaction'}</button>
+              <button
+                disabled={busy}
+                className="w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5"
+              >
+                {busy ? 'Saving...' : 'Save Transaction'}
+              </button>
             </form>
           </div>
           <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-6 flex flex-wrap justify-between gap-3 items-center"><div className="flex gap-2 items-center"><ReceiptText size={20} className="text-blue-600"/><h3 className="font-bold text-lg">Transactions for Selected Month</h3></div><select aria-label="Filter by transaction type" className="border border-slate-200 rounded-lg p-2 text-sm" value={filterKind} onChange={e=>setFilterKind(e.target.value as KindFilter)}><option value="ALL">All types</option><option value="INCOME">Income</option><option value="EXPENSE">Expense</option></select></div>
-            <div className="overflow-x-auto"><table className="w-full min-w-[550px] text-left"><thead className="bg-slate-50 text-slate-500 text-xs"><tr><th className="p-4">Date / Detail</th><th className="p-4">Category</th><th className="p-4 text-right">Amount</th><th className="p-4 text-right">Actions</th></tr></thead><tbody>{list.map(t=><tr key={t.id} className="border-t border-slate-100"><td className="px-4 py-3"><div className="font-semibold text-sm">{t.description || (t.kind==='INCOME'?'Income':'Expense')}</div><div className="text-xs text-slate-500">{t.transactionDate}</div></td><td className="px-4 py-3 text-sm text-slate-600">{t.categoryName||'—'}</td><td className={`px-4 py-3 text-right text-sm font-bold ${t.kind==='INCOME'?'text-emerald-700':'text-rose-700'}`}>{t.kind==='INCOME'?'+':'−'}{bdt(t.amount)}</td><td className="px-4 py-3"><div className="flex items-center justify-end gap-2"><button title="Edit" onClick={()=>beginEdit(t)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg"><Edit3 size={16}/></button><button disabled={busy} title="Delete" onClick={()=>void deleteTransaction(t.id)} className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg"><Trash2 size={16}/></button></div></td></tr>)}{list.length===0&&<tr><td colSpan={4} className="text-center p-12 text-slate-500">No transactions found for the selected filter this month.</td></tr>}</tbody></table></div>
+            <div className="overflow-x-auto"><table className="w-full min-w-[550px] text-left"><thead className="bg-slate-50 text-slate-500 text-xs"><tr><th className="p-4">Date / Detail</th><th className="p-4">Category</th><th className="p-4 text-right">Amount</th><th className="p-4 text-right">Actions</th></tr></thead><tbody>{list.map(t=><tr key={t.id} className="border-t border-slate-100"><td className="px-4 py-3"><div className="font-semibold text-sm">{t.description || (t.kind==='INCOME'?'Income':'Expense')}</div><div className="text-xs text-slate-500">{t.transactionDate}</div></td><td className="px-4 py-3 text-sm text-slate-600">{t.categoryName||'—'}</td><td className={`px-4 py-3 text-right text-sm font-bold ${t.kind==='INCOME'?'text-emerald-700':'text-rose-700'}`}>{t.kind==='INCOME'?'+':'−'}{bdt(t.amount)}</td><td className="px-4 py-3"><div className="flex items-center justify-end gap-2"><button type="button" disabled={busy} title="Edit" onClick={()=>beginEdit(t)} className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg"><Edit3 size={16}/></button><button disabled={busy} title="Delete" onClick={()=>void deleteTransaction(t.id)} className="text-rose-600 hover:bg-rose-50 p-2 rounded-lg"><Trash2 size={16}/></button></div></td></tr>)}{list.length===0&&<tr><td colSpan={4} className="text-center p-12 text-slate-500">No transactions found for the selected filter this month.</td></tr>}</tbody></table></div>
             <div className="px-6 py-4 text-xs text-slate-400 border-t border-slate-100">Showing up to 100 matching transactions; summary covers the full month.</div>
           </div>
         </section>
@@ -325,5 +400,21 @@ export default function App() {
       <div className="rounded-2xl border border-blue-100 bg-blue-50 p-5 flex gap-3"><ShieldCheck size={23} className="text-blue-700 shrink-0"/><div><h4 className="font-bold text-sm">Reusable API-First Architecture</h4><p className="text-sm text-slate-600 mt-1">Frontend uses <code>/api/v1</code>. External SSO, Webhooks, and Production Deployment are not yet implemented.</p></div></div>
       <footer className="text-center text-xs text-slate-400 py-4">Expense Tracker · Iteration 3 Final Build · Educational release candidate</footer>
     </main>
+
+    {editing && (
+      <TransactionEditDialog
+        key={editing.id}
+        initial={{
+          kind: editing.kind,
+          amount: editing.amount,
+          transactionDate: editing.transactionDate,
+          description: editing.description,
+          categoryId: editing.categoryId,
+        }}
+        categories={categories}
+        onSave={saveEditedTransaction}
+        onClose={() => setEditing(null)}
+      />
+    )}
   </div>;
 }
