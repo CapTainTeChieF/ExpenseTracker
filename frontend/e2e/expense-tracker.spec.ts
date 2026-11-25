@@ -15,7 +15,7 @@ test('registration -> transactions -> dashboard -> charts -> logout', async ({pa
   await page.getByPlaceholder('0.00').fill('250.00');
   await page.locator('input[type="date"]').fill('2026-11-09');
   await page.getByPlaceholder('e.g. Lunch, Bus Fare').fill('QA browser expense');
-  await page.getByRole('button',{name:'Save Transaction'}).click();
+  await page.getByRole('button',{name:'Save Transaction',exact:true}).click();
   await expect(page.getByText('Monthly Expense',{exact:true}).locator('..').locator('p')).toContainText('250.00');
   await expect(page.getByRole('img',{name:"Pie chart of selected month's expense categories"})).toBeVisible();
   await page.getByRole('button',{name:'Income',exact:true}).click();
@@ -84,6 +84,7 @@ test('transaction editing preserves scroll position and creation draft', async (
 
   await page.getByRole('button', {
     name: 'Save Transaction',
+    exact: true,
   }).click();
 
   const row = page.getByRole('row').filter({
