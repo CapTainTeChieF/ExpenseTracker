@@ -30,7 +30,7 @@ The release candidate has previously been deployed to Vercel and Render. Deploym
 | Security review | Owner sign-off and residual risk disposition | PENDING | Implemented controls and QA evidence exist; live security review and remaining risks not signed off. |
 | UAT | User sign-off with defects resolved | PENDING | Formal acceptance and first-time user results unavailable. |
 | Dependency lockfiles and review | Tracked locks, advisory review and reproducibility evidence | PARTIAL | Both locks committed; current CI/Dockerfile still use npm install; dependency/security review and immutable installs pending. |
-| Production go/no-go | Authorized decision backed by required gates | BLOCKED | No formal stable-release approval; manual gate defect and other evidence gaps remain. |
+| Production go/no-go | Authorized decision backed by required gates | BLOCKED | BUG-004 correction locally verified; merge verification and formal stable-release approval remain outstanding. |
 
 See [performance protocol](PERFORMANCE_TEST_PROTOCOL.md), [security changes and remaining risks](STEP5_SECURITY_CHANGES_AND_REMAINING_RISKS.md), [UAT sign-off template](STEP6_UAT_SIGNOFF_TEMPLATE.md), [deployment runbook](STEP5_DEPLOYMENT_RUNBOOK.md) and [backup SOP](STEP5_BACKUP_RECOVERY.md).
 
@@ -73,7 +73,7 @@ Stable-release approval remains blocked until all applicable acceptance requirem
 
 1. Identify exact candidate commit, package versions, intended deployment target, change ticket, rollback artifact and authorized reviewer roles.
 2. Review current CI logs, browser reports, security evidence, requirements traceability, recovery drill and performance/UAT outcomes. Record each unresolved finding and approved risk decision; do not silently weaken an SRS target.
-3. Resolve the manual approval workflow defect and verify negative and positive paths before relying on it. Require actual UAT, security and restore evidence, not just checked inputs.
+3. Confirm the BUG-004 correction is merged and its regression evidence reviewed before relying on the manual approval workflow. Require actual UAT, security and restore evidence, not just checked inputs.
 4. Confirm current database hosting and recoverability, staging and production configuration, secret handling, monitoring/escalation and verified rollback path.
 5. Record the human go/no-go decision and scope. Only after genuine approval should a stable version/tag/release or promotion be considered through the separate release workflow. A documentation merge does not increment package versions.
 6. Verify live deployment and monitor after approved promotion; record deployment SHA and results separately from candidate CI. Stop promotion on failures and invoke the runbook.
