@@ -161,3 +161,8 @@ npm run build
 - https://render.com/docs/deploys
 - https://www.postgresql.org/docs/17/app-pgdump.html
 - https://www.postgresql.org/docs/17/app-pgrestore.html
+
+## 10. License
+
+ExpenseTracker is licensed under the MIT License.
+See the [LICENSE](LICENSE) file for details.
