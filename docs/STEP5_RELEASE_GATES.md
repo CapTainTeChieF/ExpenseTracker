@@ -30,25 +30,50 @@ The release candidate has previously been deployed to Vercel and Render. Deploym
 | Security review | Owner sign-off and residual risk disposition | PENDING | Implemented controls and QA evidence exist; live security review and remaining risks not signed off. |
 | UAT | User sign-off with defects resolved | PENDING | Formal acceptance and first-time user results unavailable. |
 | Dependency lockfiles and review | Tracked locks, advisory review and reproducibility evidence | PARTIAL | Both locks committed; current CI/Dockerfile still use npm install; dependency/security review and immutable installs pending. |
-| Production go/no-go | Authorized decision backed by required gates | BLOCKED | No formal stable-release approval; manual gate defect and other evidence gaps remain. |
+| Production go/no-go | Authorized decision backed by required gates | BLOCKED | BUG-004 correction locally verified; merge verification and formal stable-release approval remain outstanding. |
 
 See [performance protocol](PERFORMANCE_TEST_PROTOCOL.md), [security changes and remaining risks](STEP5_SECURITY_CHANGES_AND_REMAINING_RISKS.md), [UAT sign-off template](STEP6_UAT_SIGNOFF_TEMPLATE.md), [deployment runbook](STEP5_DEPLOYMENT_RUNBOOK.md) and [backup SOP](STEP5_BACKUP_RECOVERY.md).
 
-## 3. Separate workflow defect — proposed BUG-004 (open)
+## 3. Release workflow defect — BUG-004
 
-**Affected source:** [.github/workflows/release-gate.yml](../.github/workflows/release-gate.yml). The manual workflow asks for UAT, security and restore approvals and a change ticket. It does not deploy production.
+**Issue:** [GitHub Issue #11](https://github.com/CapTainTeChieF/ExpenseTracker/issues/11)
 
-The existing approval condition chains three `test` commands with `&&`, then checks the ticket on a separate line. Bash error-exit behavior does not exit for a failed non-final command in an AND list; if UAT or security fails first, the nonempty ticket can still allow a success result. This is a release-governance defect, not an application financial-data failure.
+**Affected source:** [.github/workflows/release-gate.yml](../.github/workflows/release-gate.yml).
 
-Local reproduction using the exact shell body and `bash -e` with synthetic inputs, without dispatching GitHub Actions: all eight flag combinations with a ticket and all eight without a ticket were tested. Six invalid combinations with a ticket returned success (UAT false, or UAT true/security false, regardless of restore flag). All empty-ticket combinations failed; all-true with ticket passed; true/true/false with ticket failed.
+**Status:** Correction implemented and locally regression-tested; pending merge verification.
 
-**Disposition:** do not treat successful workflow execution as approval while this defect remains. Record a separate issue and fix/test it in a dedicated branch; no workflow source is changed by this documentation task. Proposed regression criterion: exactly one of the 16 combinations exits successfully (all flags true and nonempty ticket); every other combination exits nonzero. Also review the human evidence and ticket authenticity: boolean inputs alone cannot establish genuine sign-off. A GitHub issue number has not been assigned here.
+### Root cause
+
+The original implementation chained three approval checks using `&&` before independently validating the change ticket. Bash error-exit behavior allowed six invalid approval combinations to return success.
+
+### Correction
+
+Replaced the conditional chain with independent fail-fast validation checks for UAT approval, security approval, restore drill approval and a nonempty change ticket. Each failed condition terminates execution with exit code 1 and a descriptive error message.
+
+### Regression verification
+
+- Date: 2026-11-27 (Bangladesh time).
+- Branch: `fix/release-gate-validation`.
+- Environment: Windows Git Bash 5.2.37.
+- Bash syntax validation: PASS.
+- Regression scenarios RG-01 through RG-16: 16/16 PASS.
+- Invalid approval combinations correctly rejected: 15/15.
+- Valid synthetic approval combination correctly accepted: 1/1.
+- Incorrect approvals: reduced from six to zero within the tested input matrix.
+
+Tests executed the Bash body extracted directly from the modified workflow using synthetic inputs. No GitHub release workflow was dispatched and no production deployment was performed.
+
+### Remaining limitations
+
+The workflow validates approval assertions, not the authenticity of supporting evidence. Whitespace-only ticket validation and automated regression execution in CI remain potential follow-up improvements.
+
+Stable-release approval remains blocked until all applicable acceptance requirements and genuine human approvals are satisfied.
 
 ## 4. Go/no-go procedure
 
 1. Identify exact candidate commit, package versions, intended deployment target, change ticket, rollback artifact and authorized reviewer roles.
 2. Review current CI logs, browser reports, security evidence, requirements traceability, recovery drill and performance/UAT outcomes. Record each unresolved finding and approved risk decision; do not silently weaken an SRS target.
-3. Resolve the manual approval workflow defect and verify negative and positive paths before relying on it. Require actual UAT, security and restore evidence, not just checked inputs.
+3. Confirm the BUG-004 correction is merged and its regression evidence reviewed before relying on the manual approval workflow. Require actual UAT, security and restore evidence, not just checked inputs.
 4. Confirm current database hosting and recoverability, staging and production configuration, secret handling, monitoring/escalation and verified rollback path.
 5. Record the human go/no-go decision and scope. Only after genuine approval should a stable version/tag/release or promotion be considered through the separate release workflow. A documentation merge does not increment package versions.
 6. Verify live deployment and monitor after approved promotion; record deployment SHA and results separately from candidate CI. Stop promotion on failures and invoke the runbook.
