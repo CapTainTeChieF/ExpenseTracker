@@ -28,6 +28,7 @@ Changes since the documented `1.0.0-rc.1` preparation baseline, including subseq
 
 - **BUG-001:** Made login the default authentication screen for unauthenticated users on startup and after logout, instead of registration ([PR #3](https://github.com/CapTainTeChieF/ExpenseTracker/pull/3)).
 - **BUG-002:** Replaced inline transaction editing with a reusable modal dialog to prevent unwanted dashboard scrolling. Separated creation and editing state, preserved unfinished transaction drafts, corrected the save-button label and prevented overlapping transaction operations. The existing transaction update API remains unchanged ([PR #4](https://github.com/CapTainTeChieF/ExpenseTracker/pull/4)).
+- **BUG-004:** Corrected manual release-gate validation using independent fail-fast approval checks and explicit error messages. Local Bash regression testing passed all 16 input combinations, correctly rejecting 15 invalid combinations and accepting one valid synthetic combination ([Issue #11](https://github.com/CapTainTeChieF/ExpenseTracker/issues/11)).
 
 ### Removed
 

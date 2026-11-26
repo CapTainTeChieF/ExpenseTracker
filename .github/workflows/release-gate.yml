@@ -29,6 +29,8 @@ jobs:
           RESTORE: ${{ inputs.restore_drill_passed }}
           TICKET: ${{ inputs.change_ticket }}
         run: |
-          test "$UAT" = 'true' && test "$SEC" = 'true' && test "$RESTORE" = 'true'
-          test -n "$TICKET"
+          test "$UAT" = 'true' || { echo "ERROR: UAT approval required"; exit 1; }
+          test "$SEC" = 'true' || { echo "ERROR: Security approval required"; exit 1; }
+          test "$RESTORE" = 'true' || { echo "ERROR: Restore drill approval required"; exit 1; }
+          test -n "$TICKET" || { echo "ERROR: Change ticket required"; exit 1; }
           echo "Manual gate recorded for ticket $TICKET. Deploy separately after reviewing evidence."
